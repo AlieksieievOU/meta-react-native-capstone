@@ -1,391 +1,426 @@
-import React, { useState, useEffect, useContext } from "react";
-import {
-  View,
-  Image,
-  StyleSheet,
-  Text,
-  KeyboardAvoidingView,
-  Platform,
-  TextInput,
-  Pressable,
-  ScrollView,
-} from "react-native";
-import { validateEmail } from "../utils";
-import { AuthContext } from "../AuthContext";
-import Checkbox from "expo-checkbox";
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as ImagePicker from 'expo-image-picker';
+import { StyleSheet, ScrollView, Text, TextInput, View, Image, TouchableOpacity } from 'react-native'
+import React, { useEffect, useState } from 'react'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { COLORS, FONTS, SIZES } from '../utils/theme'
 
-const Profile = () => {
-  const [profile, setProfile] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phoneNumber: "",
-    orderStatuses: false,
-    passwordChanges: false,
-    specialOffers: false,
-    newsletter: false,
-    image: "",
-  });
-  const [discard, setDiscard] = useState(false);
+const Profile = ({ navigation }) => {
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const getProfile = await AsyncStorage.getItem('profile');
-        setProfile(JSON.parse(getProfile))
-        setDiscard(false)
-      } catch (e) {
-        console.error(e);
-      }
+    const [isLoaded, setIsLoaded] = useState(false);
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [email, setEmail] = useState('');
+    const [phoneNumber, setPhoneNumber] = useState('');
 
-    })();
-  }, [discard]);
+    const [orderStatus, setOrderStatus] = useState('true');
+    const [specialOffers, setSpecialOffers] = useState('true');
+    const [newsletters, setNewsletters] = useState('true');
 
-  const validateName = (name) => {
-    if (name.length > 0) {
-      return name.match(/[^a-zA-Z]/);
-    } else {
-      return true;
+
+    const [originalData, setOriginalData] = useState([]);
+
+
+    const getDetails = async () => {
+        try {
+            const firstName = await AsyncStorage.getItem('firstName');
+            const lastName = await AsyncStorage.getItem('lastName');
+            const email = await AsyncStorage.getItem('email');
+            const phoneNumber = await AsyncStorage.getItem('phoneNumber');
+            await AsyncStorage.getItem('orderStatus').then((value) => {
+                if (value == null) {
+                    AsyncStorage.setItem('orderStatus', orderStatus);
+                } else {
+                    setOrderStatus(value);
+                }
+            });
+            await AsyncStorage.getItem('specialOffers').then((value) => {
+                if (value == null) {
+                    AsyncStorage.setItem('specialOffers', specialOffers);
+                } else {
+                    setSpecialOffers(value);
+                }
+            });
+            await AsyncStorage.getItem('newsletters').then((value) => {
+                if (value == null) {
+                    AsyncStorage.setItem('newsletters', newsletters);
+                } else {
+                    setNewsletters(value);
+                }
+            });
+
+            setFirstName(firstName);
+            setLastName(lastName);
+            setEmail(email);
+            setPhoneNumber(phoneNumber);
+            setOriginalData({ firstName, lastName, email, phoneNumber, orderStatus, specialOffers, newsletters });
+            setIsLoaded(true);
+        }
+        catch (error) {
+            console.log(error);
+        }
     }
-  };
 
-  const validateNumber = (number) => {
-    if (isNaN(number)) {
-      return false;
-    } else if (number.length == 10) {
-      return true;
+
+    const handleSave = async () => {
+        try {
+            if (firstName.length == 0 || lastName.length == 0 || email.length == 0 || phoneNumber.length == 0) {
+                Alert.alert("Dear user",
+                    "Please fill in all the fields",
+                    [
+                        {
+                            text: "Ok",
+                            onPress: () => console.log("Cancel Pressed"),
+                            style: "cancel"
+                        },
+                    ],
+                );
+                return;
+            } else {
+                console.log("All fields are filled", firstName, lastName, email, phoneNumber, orderStatus, specialOffers, newsletters);
+                await AsyncStorage.setItem('firstName', firstName);
+                await AsyncStorage.setItem('lastName', lastName);
+                await AsyncStorage.setItem('email', email);
+                await AsyncStorage.setItem('phoneNumber', phoneNumber);
+                await AsyncStorage.setItem('orderStatus', orderStatus);
+                await AsyncStorage.setItem('specialOffers', specialOffers);
+                await AsyncStorage.setItem('newsletters', newsletters);
+                setOriginalData({ firstName, lastName, email, phoneNumber, orderStatus, specialOffers, newsletters });
+            }
+        }
+        catch (error) {
+            console.log(error);
+        }
     }
-  }
 
-  const { update } = useContext(AuthContext);
-  const { logout } = useContext(AuthContext);
 
-  const updateProfile = (key, value) => {
-    setProfile((prevState) => ({
-      ...prevState,
-      [key]: value,
-    }))
-  }
+    const handleDiscard = async () => {
+        try {
+            setFirstName(originalData.firstName);
+            setLastName(originalData.lastName);
+            setEmail(originalData.email);
+            setPhoneNumber(originalData.phoneNumber);
+            setOrderStatus(originalData.orderStatus);
+            setSpecialOffers(originalData.specialOffers);
+            setNewsletters(originalData.newsletters);
+        }
+        catch (error) {
+            console.log(error);
+        }
+    }
 
-  const getIsFormValid = () => {
+
+    const handleLogOut = async () => {
+        try {
+            await AsyncStorage.clear();
+            navigation.replace('OnBoarding');
+        }
+        catch (error) {
+            console.log(error);
+        }
+    }
+
+
+
+
+    useEffect(() => {
+        getDetails();
+    }, [])
+
+
+    if (!isLoaded) {
+        return null;
+    }
+
+
     return (
-      !validateName(profile.firstName) &&
-      !validateName(profile.lastName) &&
-      validateEmail(profile.email) &&
-      validateNumber(profile.phoneNumber)
-    );
-  };
+        <ScrollView style={styles.container}>
+            <View style={styles.Header}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backIconContainer}>
+                    <Image source={require('../assets/back.png')} style={styles.backIcon} />
+                </TouchableOpacity>
+                <Image source={require('../assets/Logo.png')} style={styles.logo} />
+                <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={styles.profileImageContainer}>
+                    <Image source={require('../assets/profile-pic.png')}
+                        style={styles.profileImage} />
+                </TouchableOpacity>
+            </View>
+            <View style={styles.bodySection}>
+                <Text style={styles.sectionTitle}>Personal information</Text>
+                <View style={styles.profileImageAndEditButtons}>
+                    <Image source={require('../assets/profile-pic.png')}
+                        style={styles.profileImageMain} />
+                    <TouchableOpacity style={[styles.saveButton, { height: 45, width: "25%", marginHorizontal: 5 }]}>
+                        <Text style={styles.saveButtonText}>Change</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.saveButtonDisabled, { height: 45, width: "25%", marginHorizontal: 5 }]}>
+                        <Text style={[styles.saveButtonText, { color: COLORS.darkGreen }]}>Remove</Text>
+                    </TouchableOpacity>
+                </View>
 
-  const pickImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
+                <Text style={styles.inputLabel}>First Name</Text>
+                <View style={styles.inputContainer}>
+                    <TextInput
+                        style={styles.input}
+                        value={firstName}
+                        onChangeText={text => setFirstName(text)}
+                    />
+                </View>
 
-    if (!result.canceled) {
-      setProfile((prevState) => ({
-        ...prevState,
-        ['image']: result.assets[0].uri,
-      }))
-    }
-  };
+                <Text style={styles.inputLabel}>Last Name</Text>
+                <View style={styles.inputContainer}>
+                    <TextInput
+                        style={styles.input}
+                        value={lastName}
+                        onChangeText={text => setLastName(text)}
+                    />
+                </View>
 
-  const removeImage = () => {
-    setProfile((prevState) => ({
-      ...prevState,
-      ['image']: "",
-    }))
-  };
+                <Text style={styles.inputLabel}>Email</Text>
+                <View style={styles.inputContainer}>
+                    <TextInput
+                        style={styles.input}
+                        value={email}
+                        onChangeText={text => setEmail(text)}
+                    />
 
-  return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <View style={styles.header}>
-        <Image
-          style={styles.logo}
-          source={require("../img/littleLemonLogo.png")}
-          accessible={true}
-          accessibilityLabel={"Little Lemon Logo"}
-        />
-      </View>
-      <ScrollView style={styles.viewScroll}>
-        <Text style={styles.headertext}>Personal information</Text>
-        <Text style={styles.text}>Avatar</Text>
-        <View style={styles.avatarContainer}>
-        {profile.image ? <Image source={{ uri: profile.image }} style={styles.avatarImage} /> : <View style={styles.avatarEmpty}><Text style={styles.avatarEmptyText}>{profile.firstName && Array.from(profile.firstName)[0]}{profile.lastName && Array.from(profile.lastName)[0]}</Text></View>}
-        <View style={styles.avatarButtons}>
-      <Pressable style={styles.changeBtn} title="Pick an image from camera roll" onPress={pickImage}><Text style={styles.saveBtnText}>Change</Text></Pressable>
-      <Pressable style={styles.removeBtn} title="Pick an image from camera roll" onPress={removeImage}><Text style={styles.discardBtnText}>Remove</Text></Pressable>
-      </View>
-    </View>
-        <Text
-          style={[
-            styles.text,
-            !validateName(profile.firstName) ? "" : styles.error,
-          ]}
-        >
-          First Name
-        </Text>
-        <TextInput
-          style={styles.inputBox}
-          value={profile.firstName}
-          onChangeText={(newValue) => updateProfile("firstName", newValue)}
-          placeholder={"First Name"}
-        />
-        <Text
-          style={[
-            styles.text,
-            !validateName(profile.lastName) ? "" : styles.error,
-          ]}
-        >
-          Last Name
-        </Text>
-        <TextInput
-          style={styles.inputBox}
-          value={profile.lastName}
-          onChangeText={(newValue) => updateProfile("lastName", newValue)}
-          placeholder={"Last Name"}
-        />
-        <Text
-          style={[
-            styles.text,
-            validateEmail(profile.email) ? "" : styles.error,
-          ]}
-        >
-          Email
-        </Text>
-        <TextInput
-          style={styles.inputBox}
-          value={profile.email}
-          keyboardType="email-address"
-          onChangeText={(newValue) => updateProfile("email", newValue)}
-          placeholder={"Email"}
-        />
-        <Text style={[
-            styles.text,
-            validateNumber(profile.phoneNumber) ? "" : styles.error,
-          ]}>Phone number (10 digit)</Text>
-        <TextInput
-          style={styles.inputBox}
-          value={profile.phoneNumber}
-          keyboardType="phone-pad"
-          onChangeText={(newValue) => updateProfile("phoneNumber", newValue)}
-          placeholder={"Phone number"}
-        />
-        <Text style={styles.headertext}>Email notifications</Text>
-        <View style={styles.section}>
-          <Checkbox
-            style={styles.checkbox}
-            value={profile.orderStatuses}
-            onValueChange={(newValue) =>
-              updateProfile("orderStatuses", newValue)
+                </View>
+
+                <Text style={styles.inputLabel}>Phone Number</Text>
+                <View style={styles.inputContainer}>
+
+                    <TextInput
+                        style={styles.input}
+                        value={phoneNumber}
+                        onChangeText={text => setPhoneNumber(text)}
+                    />
+                </View>
+                <View style={{ marginBottom: 20 }}>
+                    <Text style={styles.sectionTitle}>Email Notifications</Text>
+                    <TouchableOpacity style={styles.tickBoxContainer} onPress={() => {
+                        if (orderStatus == 'true') {
+                            setOrderStatus('false');
+                        } else {
+                            setOrderStatus('true');
+                        }
+                    }}>
+                        {orderStatus === 'true' ? <Image source={require('../assets/tick.png')} style={{ width: 20, height: 20, marginRight: 10 }} />
+                            : <View style={styles.tickBox}></View>
+                        }
+                        <Text style={styles.tickBoxText}>Order Status</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.tickBoxContainer} onPress={() => {
+                        if (specialOffers == 'true') {
+                            setSpecialOffers('false');
+                        } else {
+                            setSpecialOffers('true');
+                        }
+                    }}>
+                        {specialOffers === 'true' ? <Image source={require('../assets/tick.png')} style={{ width: 20, height: 20, marginRight: 10 }} />
+                            : <View style={styles.tickBox}></View>
+                        }
+                        <Text style={styles.tickBoxText}>Special Offers</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.tickBoxContainer} onPress={() => {
+                        if (newsletters == 'true') {
+                            setNewsletters('false');
+                        } else {
+                            setNewsletters('true');
+                        }
+                    }}>
+                        {newsletters === 'true' ? <Image source={require('../assets/tick.png')} style={{ width: 20, height: 20, marginRight: 10 }} />
+                            : <View style={styles.tickBox}></View>
+                        }
+                        <Text style={styles.tickBoxText}>Newsletters</Text>
+                    </TouchableOpacity>
+
+                </View>
+
+                <TouchableOpacity style={styles.logOutButton} onPress={() => handleLogOut()}>
+                    <Text style={styles.logOutButtonText}>Log out</Text>
+                </TouchableOpacity>
+            </View>
+
+            {
+                firstName !== originalData.firstName ||
+                    lastName !== originalData.lastName ||
+                    email !== originalData.email ||
+                    phoneNumber !== originalData.phoneNumber ||
+                    orderStatus !== originalData.orderStatus ||
+                    specialOffers !== originalData.specialOffers ||
+                    newsletters !== originalData.newsletters
+                    ?
+                    <View style={styles.buttonSection}>
+                        <TouchableOpacity style={styles.saveButtonDisabled} onPress={() => handleDiscard()}>
+                            <Text style={[styles.saveButtonText, { color: COLORS.darkGreen }]}>Discard Changes</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.saveButton} onPress={() => handleSave()}>
+                            <Text style={styles.saveButtonText}>Save Changes</Text>
+                        </TouchableOpacity>
+                    </View>
+                    : null
             }
-            color={"#495e57"}
-          />
-          <Text style={styles.paragraph}>Order statuses</Text>
-        </View>
-        <View style={styles.section}>
-          <Checkbox
-            style={styles.checkbox}
-            value={profile.passwordChanges}
-            onValueChange={(newValue) =>
-              updateProfile("passwordChanges", newValue)
-            }
-            color={"#495e57"}
-          />
-          <Text style={styles.paragraph}>Password changes</Text>
-        </View>
-        <View style={styles.section}>
-          <Checkbox
-            style={styles.checkbox}
-            value={profile.specialOffers}
-            onValueChange={(newValue) =>
-              updateProfile("specialOffers", newValue)
-            }
-            color={"#495e57"}
-          />
-          <Text style={styles.paragraph}>Special offers</Text>
-        </View>
-        <View style={styles.section}>
-          <Checkbox
-            style={styles.checkbox}
-            value={profile.newsletter}
-            onValueChange={(newValue) => updateProfile("newsletter", newValue)}
-            color={"#495e57"}
-          />
-          <Text style={styles.paragraph}>Newsletter</Text>
-        </View>
-        <Pressable style={styles.btn} onPress={() => logout()}>
-          <Text style={styles.btntext}>Log out</Text>
-        </Pressable>
-        <View style={styles.buttons}>
-          <Pressable
-            style={styles.discardBtn}
-            onPress={() => setDiscard(true)}
-          >
-            <Text style={styles.discardBtnText}>Discard changes</Text>
-          </Pressable>
-          <Pressable style={[styles.saveBtn, getIsFormValid() ? "" : styles.btnDisabled]} onPress={() => update(profile)} disabled={!getIsFormValid()}>
-            <Text style={styles.saveBtnText}>Save changes</Text>
-          </Pressable>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
-};
+
+
+        </ScrollView >
+    )
+}
+
+export default Profile
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  header: {
-    padding: 12,
-    flexDirection: "row",
-    justifyContent: "center",
-    backgroundColor: "#dee3e9",
-  },
-  logo: {
-    height: 50,
-    width: 150,
-    resizeMode: "contain",
-  },
-  viewScroll: {
-    flex: 1,
-    padding: 10,
-  },
-  headertext: {
-    fontSize: 22,
-    paddingBottom: 10,
-  },
-  text: {
-    fontSize: 16,
-    marginBottom: 5,
-  },
-  inputBox: {
-    alignSelf: "stretch",
-    marginBottom: 10,
-    borderWidth: 1,
-    padding: 10,
-    fontSize: 16,
-    borderRadius: 9,
-    borderColor: "#dfdfe5",
-  },
-  btn: {
-    backgroundColor: "#f4ce14",
-    borderRadius: 9,
-    alignSelf: "stretch",
-    marginVertical: 18,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#cc9a22",
-  },
-  btnDisabled: {
-    backgroundColor: "#98b3aa",
-  },
-  buttons: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 60,
-  },
-  saveBtn: {
-    flex: 1,
-    backgroundColor: "#495e57",
-    borderRadius: 9,
-    alignSelf: "stretch",
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#3f554d",
-  },
-  saveBtnText: {
-    fontSize: 18,
-    color: "#FFFFFF",
-    alignSelf: "center",
-  },
-  discardBtn: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 9,
-    alignSelf: "stretch",
-    marginRight: 18,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#83918c",
-  },
-  discardBtnText: {
-    fontSize: 18,
-    color: "#3e524b",
-    alignSelf: "center",
-  },
-  btntext: {
-    fontSize: 22,
-    color: "#3e524b",
-    fontWeight: "bold",
-    alignSelf: "center",
-  },
-  section: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  paragraph: {
-    fontSize: 15,
-  },
-  checkbox: {
-    margin: 8,
-  },
-  error: {
-    color: "#d14747",
-    fontWeight: "bold",
-  },
-  avatarContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 10,
-  },
-  avatarImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-  },
-  avatarEmpty: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#0b9a6a',
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarEmptyText: {
-    fontSize: 32,
-    color: '#FFFFFF',
-    fontWeight: 'bold'
-  },
-  avatarButtons: {
-    flexDirection: "row",
-  },
-  changeBtn: {
-    backgroundColor: "#495e57",
-    borderRadius: 9,
-    marginHorizontal: 18,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#3f554d",
-  },
-  removeBtn: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 9,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#83918c",
-  },
-});
+    container: {
+        flex: 1,
+        backgroundColor: COLORS.white,
+    },
+    Header: {
+        flexDirection: 'row',
+        width: '100%',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    backIconContainer: {
+        width: 50,
+        height: 50,
+        borderRadius: 20,
+        borderColor: 'red',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginLeft: 10,
+        //   backgroundColor: COLORS.lightGreen,
 
-export default Profile;
+    },
+    backIcon: {
+        width: 20,
+        height: 20,
+        resizeMode: 'contain',
+        tintColor: COLORS.darkGreen,
+    },
+    logo: {
+        width: 150,
+        height: 100,
+        resizeMode: 'contain',
+    },
+    profileImageContainer: {
+        width: 50,
+        height: 50,
+        borderRadius: 20,
+        borderColor: COLORS.darkGreen,
+        marginRight: 10,
+    },
+    profileImage: {
+        width: 50,
+        height: 50,
+        borderRadius: 20,
+        resizeMode: 'contain',
+        marginRight: 10,
+    },
+    bodySection: {
+        width: '100%',
+        paddingHorizontal: 20,
+    },
+    sectionTitle: {
+        fontSize: SIZES.medium,
+        fontFamily: FONTS.sectionTitle,
+        color: COLORS.darkGreen,
+        marginBottom: 10,
+    },
+    profileImageAndEditButtons: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginVertical: 10,
+        marginHorizontal: 10,
+
+    },
+    profileImageMain: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        resizeMode: 'contain',
+        marginRight: 10,
+    },
+    inputLabel: {
+        fontSize: SIZES.medium - 2,
+        fontFamily: FONTS.cardTitle,
+        color: COLORS.darkGreen,
+        marginVertical: 5,
+    },
+    inputContainer: {
+        width: '100%',
+        height: 50,
+        borderWidth: 1,
+        borderColor: "#EDEFEE",
+        borderRadius: 10,
+        paddingHorizontal: 10,
+        justifyContent: 'center',
+        marginBottom: 10,
+    },
+    input: {
+        fontSize: SIZES.medium,
+        fontFamily: FONTS.paragraph,
+        color: COLORS.black,
+    },
+    tickBoxContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginVertical: 5,
+    },
+    tickBox: {
+        width: 20,
+        height: 20,
+        borderRadius: 5,
+        borderWidth: 1,
+        borderColor: COLORS.grey,
+        marginRight: 10,
+    },
+    tickBoxText: {
+        fontSize: SIZES.medium,
+        fontFamily: FONTS.paragraph,
+        color: COLORS.darkGreen,
+
+    },
+    logOutButton: {
+        width: '100%',
+        height: 50,
+        backgroundColor: COLORS.yellow,
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginVertical: 10,
+    },
+    logOutButtonText: {
+        fontSize: SIZES.medium,
+        fontFamily: FONTS.cardTitle,
+        color: COLORS.black,
+    },
+    buttonSection: {
+        width: '100%',
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+    },
+    saveButton: {
+        width: '40%',
+        height: 50,
+        backgroundColor: COLORS.darkGreen,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    saveButtonDisabled: {
+        width: '40%',
+        height: 50,
+        backgroundColor: COLORS.white,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.darkGreen,
+    },
+    saveButtonText: {
+        fontSize: SIZES.medium - 2,
+        fontFamily: FONTS.cardTitle,
+        color: COLORS.white,
+    },
+
+})
